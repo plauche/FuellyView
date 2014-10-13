@@ -3,7 +3,7 @@ package GroupMengine
 import (
 	"appengine"
 	"appengine/urlfetch"
-	//"encoding/json"
+	"encoding/json"
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
 	//"io/ioutil"
@@ -12,7 +12,7 @@ import (
 	//"net/url"
 	"appengine/datastore"
 	"appengine/taskqueue"
-	"html/template"
+	//"html/template"
 	"strconv"
 	"strings"
 )
@@ -20,7 +20,14 @@ import (
 func init() {
 	http.HandleFunc("/refresh", getData)
 	http.HandleFunc("/parseCar", parseCar)
-	http.HandleFunc("/", queryDb)
+	//http.HandleFunc("/", queryDb)
+	//http.HandleFunc("/makes/{make:[A-Za-z]+}.json", serveMakeJson)
+	http.HandleFunc("/makes.json", serveMakeJson)
+	http.HandleFunc("/cars.json", getCarData)
+
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "index.html")
+	})
 }
 
 type CarInfo struct {
@@ -29,6 +36,33 @@ type CarInfo struct {
 	Year  int
 	Mpg   float64
 	Url   string
+}
+
+func serveMakeJson(w http.ResponseWriter, r *http.Request) {
+	c := appengine.NewContext(r)
+
+	q := datastore.NewQuery("CarInfo").
+		Project("Make").
+		Distinct()
+
+	var makes []string
+	for t := q.Run(c); ; {
+		var car2 CarInfo
+		_, err := t.Next(&car2)
+		if err == datastore.Done {
+			break
+		}
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+
+		makes = append(makes, car2.Make)
+	}
+
+	dataJson, _ := json.Marshal(makes)
+
+	fmt.Fprintf(w, "%s", string(dataJson))
 }
 
 func ModelScrape(client *http.Client, Make string, Model string, Url string) CarInfo {
@@ -62,7 +96,61 @@ func ModelScrape(client *http.Client, Make string, Model string, Url string) Car
 	return car
 }
 
-var tpl = template.Must(template.ParseFiles("src/templates/main.html"))
+//var tpl = template.Must(template.ParseFiles("src/templates/main.html"))
+
+func getCarData(w http.ResponseWriter, r *http.Request) {
+	c := appengine.NewContext(r)
+
+	carMake := r.URL.Query()["make"]
+	mpg := r.URL.Query()["mpg"]
+
+	var orderBy string
+	if len(mpg) == 1 && mpg[0] == "bottom" {
+		orderBy = "Mpg"
+	} else {
+		orderBy = "-Mpg"
+	}
+
+	//fmt.Fprintf(w, "%+v", r.URL.Query()["make"])
+	type CarDisplay struct {
+		Url     string
+		Display string
+	}
+
+	var dataDisplay []CarDisplay
+	q := datastore.NewQuery("CarInfo")
+
+	if len(carMake) == 1 {
+		q = datastore.NewQuery("CarInfo").
+			Order(orderBy).
+			Filter("Make =", carMake[0]).
+			Limit(10)
+	} else {
+		q = datastore.NewQuery("CarInfo").
+			Order(orderBy).
+			Limit(10)
+	}
+
+	for t := q.Run(c); ; {
+		var car2 CarInfo
+		_, err := t.Next(&car2)
+		if err == datastore.Done {
+			break
+		}
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		var info CarDisplay
+		info.Url = fmt.Sprintf("%s/%d", car2.Url, car2.Year)
+		info.Display = fmt.Sprintf("%d %s %s (%-3.1f)", car2.Year, strings.Title(car2.Make), strings.Title(car2.Model), car2.Mpg)
+		dataDisplay = append(dataDisplay, info)
+	}
+
+	dataJson, _ := json.Marshal(dataDisplay)
+
+	fmt.Fprintf(w, "%s", string(dataJson))
+}
 
 func queryDb(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
@@ -118,9 +206,9 @@ func queryDb(w http.ResponseWriter, r *http.Request) {
 		dataDisplay.Makes = append(dataDisplay.Makes, car2.Make)
 	}
 
-	if err := tpl.ExecuteTemplate(w, "main.html", dataDisplay); err != nil {
-		c.Errorf("%v", err)
-	}
+	//if err := tpl.ExecuteTemplate(w, "main.html", dataDisplay); err != nil {
+	//	c.Errorf("%v", err)
+	//}
 
 	fmt.Fprintf(w, "Db generated")
 }
@@ -156,9 +244,11 @@ func parseCar(w http.ResponseWriter, r *http.Request) {
 
 	var car CarInfo = ModelScrape(client, urlParts[len(urlParts)-2], urlParts[len(urlParts)-1], url)
 
-	_, err := datastore.Put(c, datastore.NewIncompleteKey(c, "CarInfo", nil), &car)
-	if err != nil {
-		return
+	if len(car.Make) > 0 && len(car.Model) > 0 {
+		_, err := datastore.Put(c, datastore.NewIncompleteKey(c, "CarInfo", nil), &car)
+		if err != nil {
+			return
+		}
 	}
 }
 

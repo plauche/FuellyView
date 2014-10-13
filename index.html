@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>Browse All Cars</title>
+
+<link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
+
+</head>
+
+<body>
+
+
+<div class="container" ng-app="" ng-controller="carsController">
+	<div class="container">
+		<h3>Top 10 Cars for {{make}}</h3>
+		<ul>
+		  <li ng-repeat="x in topCars">
+		    <a href="{{ x.Url }}" target="_blank">{{ x.Display }}</a>
+		  </li>
+		</ul>
+	</div>
+	
+	<div class="container">
+		<h3>Bottom 10 Cars for {{make}}</h3>
+		<ul>
+		  <li ng-repeat="x in bottomCars">
+		    <a href="{{ x.Url }}" target="_blank">{{ x.Display }}</a>
+		  </li>
+		</ul>
+	</div>
+	
+	
+	<div>
+		<h3>Filter by Make</h3>
+		<div>
+			<select ng-model="make" ng-change="makeChanged(make)">
+				<option ng-repeat="x in makes" value="{{ x }}">
+				{{ x }}
+				</option>
+			</select>
+		</div>
+	</div>
+
+</div>
+
+<script>
+function carsController($scope,$http) {
+	$http.get("cars.json?mpg=top")
+	.success(function(response) {$scope.topCars = response;});
+	
+	$http.get("cars.json?mpg=bottom")
+	.success(function(response) {$scope.bottomCars = response;});
+	
+	$http.get("makes.json")
+	.success(function(response) {$scope.makes = response;});
+	
+	$scope.makeChanged = function(make) {
+		$http.get("cars.json?mgp=top&make="+make)
+		.success(function(response) {$scope.topCars = response;});
+		
+		$http.get("cars.json?mpg=bottom&make="+make)
+		.success(function(response) {$scope.bottomCars = response;});
+	}
+}
+
+</script>
+
+
+<script src="http://ajax.googleapis.com/ajax/libs/angularjs/1.2.15/angular.min.js"></script>
+
+</body>
+</html>
