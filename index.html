@@ -10,36 +10,62 @@
 <body>
 
 
-<div class="container" ng-app="" ng-controller="carsController">
-	<div class="container">
-		<h3>Top 10 Cars for {{make}}</h3>
-		<ul>
-		  <li ng-repeat="x in topCars">
-		    <a href="{{ x.Url }}" target="_blank">{{ x.Display }}</a>
-		  </li>
-		</ul>
-	</div>
+<div class="container" ng-app="" ng-init="make='*'" ng-controller="carsController">
+	<div class="row">
 	
-	<div class="container">
-		<h3>Bottom 10 Cars for {{make}}</h3>
-		<ul>
-		  <li ng-repeat="x in bottomCars">
-		    <a href="{{ x.Url }}" target="_blank">{{ x.Display }}</a>
-		  </li>
-		</ul>
-	</div>
-	
-	
-	<div>
-		<h3>Filter by Make</h3>
-		<div>
-			<select ng-model="make" ng-change="makeChanged(make)">
-				<option ng-repeat="x in makes" value="{{ x }}">
-				{{ x }}
-				</option>
-			</select>
+		<div class="col-md-4">
+			<div class="container" ng-init="year='*'">
+				<h3>Filter by Make</h3>
+				<div>
+					<select ng-model="make" ng-change="makeChanged()">
+						<option value=""></option>
+						<option ng-repeat="x in makes" value="{{ x }}">
+						{{ x }}
+						</option>
+					</select>
+				</div>
+			</div>
+			
+			<div class="container">
+				<h3>Filter by Year</h3>
+				<div>
+					<select ng-model="year" ng-change="yearChanged()">
+						<option value=""></option>
+						<option ng-repeat="x in years" value="{{ x }}">
+						{{ x }}
+						</option>
+					</select>
+				</div>
+			</div>
+			
+		</div>
+		
+		<div class="col-md-4">
+			<h3>Top 10 Cars</h3>
+			<ul>
+			  <li ng-repeat="x in topCars">
+			    <a href="{{ x.Url }}" target="_blank">{{ x.Display }}</a>
+			  </li>
+			</ul>
+		</div>
+		
+		<div class="col-md-4">
+			<h3>Bottom 10 Cars</h3>
+			<ul>
+			  <li ng-repeat="x in bottomCars">
+			    <a href="{{ x.Url }}" target="_blank">{{ x.Display }}</a>
+			  </li>
+			</ul>
 		</div>
 	</div>
+	
+	<div class="row">
+		<div class="col-md-4">
+			<button class="btn" ng-click="resetData()">Reset</button>
+		</div>
+	</div>
+	
+	
 
 </div>
 
@@ -54,12 +80,37 @@ function carsController($scope,$http) {
 	$http.get("makes.json")
 	.success(function(response) {$scope.makes = response;});
 	
-	$scope.makeChanged = function(make) {
-		$http.get("cars.json?mgp=top&make="+make)
+	$http.get("years.json")
+	.success(function(response) {$scope.years = response;});
+	
+	$scope.makeChanged = function() {
+		$http.get("cars.json?mgp=top&make="+$scope.make+"&year="+$scope.year)
 		.success(function(response) {$scope.topCars = response;});
 		
-		$http.get("cars.json?mpg=bottom&make="+make)
+		$http.get("cars.json?mpg=bottom&make="+$scope.make+"&year="+$scope.year)
 		.success(function(response) {$scope.bottomCars = response;});
+		
+		$http.get("years.json?make="+$scope.make)
+		.success(function(response) {$scope.years = response;});
+	}
+	
+	$scope.yearChanged = function() {
+		$http.get("cars.json?mgp=top&make="+$scope.make+"&year="+$scope.year)
+		.success(function(response) {$scope.topCars = response;});
+		
+		$http.get("cars.json?mpg=bottom&make="+$scope.make+"&year="+$scope.year)
+		.success(function(response) {$scope.bottomCars = response;});
+		
+		$http.get("makes.json?year="+$scope.year)
+		.success(function(response) {$scope.makes = response;});
+	
+	}
+	
+	$scope.resetData = function() { 
+		$scope.make=""; 
+		$scope.year="";
+		$scope.yearChanged();
+		$scope.makeChanged(); 
 	}
 }
 

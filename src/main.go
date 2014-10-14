@@ -24,6 +24,7 @@ func init() {
 	//http.HandleFunc("/makes/{make:[A-Za-z]+}.json", serveMakeJson)
 	http.HandleFunc("/makes.json", serveMakeJson)
 	http.HandleFunc("/cars.json", getCarData)
+	http.HandleFunc("/years.json", serveYearJson)
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "index.html")
@@ -38,11 +39,55 @@ type CarInfo struct {
 	Url   string
 }
 
+func serveYearJson(w http.ResponseWriter, r *http.Request) {
+	c := appengine.NewContext(r)
+
+	carMake := r.URL.Query()["make"]
+
+	q := datastore.NewQuery("CarInfo")
+
+	if len(carMake) == 1 && len(carMake[0]) > 1 {
+		q = q.Filter("Make =", carMake[0])
+	}
+
+	q = q.Project("Year").
+		Order("-Year").
+		Distinct()
+
+	var years []string
+	for t := q.Run(c); ; {
+		var car2 CarInfo
+		_, err := t.Next(&car2)
+		if err == datastore.Done {
+			break
+		}
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+
+		year := fmt.Sprintf("%d", car2.Year)
+		years = append(years, year)
+	}
+
+	dataJson, _ := json.Marshal(years)
+
+	fmt.Fprintf(w, "%s", string(dataJson))
+}
+
 func serveMakeJson(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
 
-	q := datastore.NewQuery("CarInfo").
-		Project("Make").
+	year := r.URL.Query()["year"]
+
+	q := datastore.NewQuery("CarInfo")
+
+	if len(year) == 1 && len(year[0]) == 4 {
+		carYear, _ := strconv.Atoi(year[0])
+		q = q.Filter("Year =", carYear)
+	}
+
+	q = q.Project("Make").
 		Distinct()
 
 	var makes []string
@@ -96,13 +141,12 @@ func ModelScrape(client *http.Client, Make string, Model string, Url string) Car
 	return car
 }
 
-//var tpl = template.Must(template.ParseFiles("src/templates/main.html"))
-
 func getCarData(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
 
 	carMake := r.URL.Query()["make"]
 	mpg := r.URL.Query()["mpg"]
+	year := r.URL.Query()["year"]
 
 	var orderBy string
 	if len(mpg) == 1 && mpg[0] == "bottom" {
@@ -118,17 +162,17 @@ func getCarData(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var dataDisplay []CarDisplay
-	q := datastore.NewQuery("CarInfo")
+	q := datastore.NewQuery("CarInfo").
+		Order(orderBy).
+		Limit(10)
 
-	if len(carMake) == 1 {
-		q = datastore.NewQuery("CarInfo").
-			Order(orderBy).
-			Filter("Make =", carMake[0]).
-			Limit(10)
-	} else {
-		q = datastore.NewQuery("CarInfo").
-			Order(orderBy).
-			Limit(10)
+	if len(carMake) == 1 && len(carMake[0]) > 1 {
+		q = q.Filter("Make =", carMake[0])
+	}
+
+	if len(year) == 1 && len(year[0]) == 4 {
+		carYear, _ := strconv.Atoi(year[0])
+		q = q.Filter("Year =", carYear)
 	}
 
 	for t := q.Run(c); ; {

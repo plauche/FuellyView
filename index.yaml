@@ -20,3 +20,38 @@ indexes:
   - name: Make
   - name: Mpg
     direction: desc
+
+- kind: CarInfo
+  properties:
+  - name: Make
+  - name: Year
+  - name: Mpg
+
+- kind: CarInfo
+  properties:
+  - name: Make
+  - name: Year
+  - name: Mpg
+    direction: desc
+
+- kind: CarInfo
+  properties:
+  - name: Make
+  - name: Year
+    direction: desc
+
+- kind: CarInfo
+  properties:
+  - name: Year
+  - name: Make
+
+- kind: CarInfo
+  properties:
+  - name: Year
+  - name: Mpg
+
+- kind: CarInfo
+  properties:
+  - name: Year
+  - name: Mpg
+    direction: desc
