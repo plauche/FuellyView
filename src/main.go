@@ -90,7 +90,12 @@ func serveMakeJson(w http.ResponseWriter, r *http.Request) {
 	q = q.Project("Make").
 		Distinct()
 
-	var makes []string
+	type MakeData struct {
+		Display string
+		Value   string
+	}
+
+	var makes []MakeData
 	for t := q.Run(c); ; {
 		var car2 CarInfo
 		_, err := t.Next(&car2)
@@ -102,7 +107,12 @@ func serveMakeJson(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		makes = append(makes, car2.Make)
+		var newMake MakeData
+		newMake.Value = car2.Make
+		newMake.Display = strings.Replace(car2.Make, "_", " ", -1)
+		newMake.Display = strings.Title(newMake.Display)
+
+		makes = append(makes, newMake)
 	}
 
 	dataJson, _ := json.Marshal(makes)
@@ -187,7 +197,11 @@ func getCarData(w http.ResponseWriter, r *http.Request) {
 		}
 		var info CarDisplay
 		info.Url = fmt.Sprintf("%s/%d", car2.Url, car2.Year)
-		info.Display = fmt.Sprintf("%d %s %s (%-3.1f)", car2.Year, strings.Title(car2.Make), strings.Title(car2.Model), car2.Mpg)
+		info.Display = fmt.Sprintf("%d %s %s (%-3.1f)",
+			car2.Year,
+			strings.Title(strings.Replace(car2.Make, "_", " ", -1)),
+			strings.Title(strings.Replace(car2.Model, "_", " ", -1)),
+			car2.Mpg)
 		dataDisplay = append(dataDisplay, info)
 	}
 
