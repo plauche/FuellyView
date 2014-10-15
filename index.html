@@ -5,68 +5,68 @@
 
 <link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
 
+<style>
+a.carLink {
+	color:#31ac9e;
+}
+</style>
+
 </head>
 
-<body>
+<body style="background-color:#fbfaed;">
+
+<div class="navbar navbar-inverse navbar-fixed-top" role="navigation" style="background-color:#3eb9ae;">
+<div class="container" style="width:50%;">
+	<div class="navbar-header">
+		<a class="navbar-brand" style="color:white;" href="#">Fuelly MPG View</a>
+	</div>
+</div>
+</div>
 
 
-<div class="container" ng-app="" ng-init="make='*'" ng-controller="carsController">
-	<div class="row">
+<div class="container" ng-app=""  ng-controller="carsController" style="margin-top:100px; width:50%;">
 	
-		<div class="col-md-4">
-			<div class="container" ng-init="year='*'">
-				<h3>Filter by Make</h3>
-				<div>
+		<div class="row">
+			<div class="col-md-8" style="align:center;">
 					<select ng-model="make" ng-change="makeChanged()">
-						<option value=""></option>
+						<option value="">Any Make</option>
 						<option ng-repeat="x in makes" value="{{ x }}">
 						{{ x }}
 						</option>
 					</select>
-				</div>
-			</div>
-			
-			<div class="container">
-				<h3>Filter by Year</h3>
-				<div>
+				
 					<select ng-model="year" ng-change="yearChanged()">
-						<option value=""></option>
+						<option value="">Any Year</option>
 						<option ng-repeat="x in years" value="{{ x }}">
 						{{ x }}
 						</option>
 					</select>
-				</div>
+					
+					<button class="btn" style="background-color:#3eb9ae; color:white;" ng-click="resetData()">Reset Filters</button>
+			</div>
+		</div>
+	
+		<div class="row">
+			<div class="col-md-5">
+				<h3>Best Mileage</h3>
+				<ol>
+				  <li ng-repeat="x in topCars">
+				    <a href="{{ x.Url }}" class="carLink" target="_blank">{{ x.Display }}</a>
+				  </li>
+				</ol>
 			</div>
 			
+			<div class="col-md-5">
+				<h3>Worst Mileage</h3>
+				<ol>
+				  <li ng-repeat="x in bottomCars">
+				    <a href="{{ x.Url }}" class="carLink" target="_blank">{{ x.Display }}</a>
+				  </li>
+				</ol>
+			</div>
 		</div>
-		
-		<div class="col-md-4">
-			<h3>Top 10 Cars</h3>
-			<ul>
-			  <li ng-repeat="x in topCars">
-			    <a href="{{ x.Url }}" target="_blank">{{ x.Display }}</a>
-			  </li>
-			</ul>
-		</div>
-		
-		<div class="col-md-4">
-			<h3>Bottom 10 Cars</h3>
-			<ul>
-			  <li ng-repeat="x in bottomCars">
-			    <a href="{{ x.Url }}" target="_blank">{{ x.Display }}</a>
-			  </li>
-			</ul>
-		</div>
-	</div>
-	
-	<div class="row">
-		<div class="col-md-4">
-			<button class="btn" ng-click="resetData()">Reset</button>
-		</div>
-	</div>
 	
 	
-
 </div>
 
 <script>
