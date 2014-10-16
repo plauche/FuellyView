@@ -264,31 +264,7 @@ func queryDb(w http.ResponseWriter, r *http.Request) {
 		dataDisplay.Makes = append(dataDisplay.Makes, car2.Make)
 	}
 
-	//if err := tpl.ExecuteTemplate(w, "main.html", dataDisplay); err != nil {
-	//	c.Errorf("%v", err)
-	//}
-
 	fmt.Fprintf(w, "Db generated")
-}
-
-func MakeDB(r *http.Request, car chan CarInfo, countChan chan int, count int) {
-	c := appengine.NewContext(r)
-	for j := 0; j < count; j++ {
-		jj := <-countChan
-		for i := 0; i < jj; i++ {
-			e := <-car
-			//_, err = stmt.Exec(e.Make, e.Model, e.Year, e.Mpg)
-			//fmt.Printf("Inserting %s %s %s\n", e.Make, e.Model, e.Year)
-			//if err != nil {
-			//	log.Fatal(err)
-			//}
-
-			_, err := datastore.Put(c, datastore.NewIncompleteKey(c, "CarInfo", nil), &e)
-			if err != nil {
-				return
-			}
-		}
-	}
 }
 
 func parseCar(w http.ResponseWriter, r *http.Request) {
@@ -303,10 +279,27 @@ func parseCar(w http.ResponseWriter, r *http.Request) {
 	var car CarInfo = ModelScrape(client, urlParts[len(urlParts)-2], urlParts[len(urlParts)-1], url)
 
 	if len(car.Make) > 0 && len(car.Model) > 0 {
-		_, err := datastore.Put(c, datastore.NewIncompleteKey(c, "CarInfo", nil), &car)
-		if err != nil {
-			return
+		// Now lets check to see if the car exists first...
+		q := datastore.NewQuery("CarInfo").
+			Filter("Make =", car.Make).
+			Filter("Model =", car.Model).
+			Filter("Year =", car.Year)
+		t := q.Run(c)
+
+		var existingCar CarInfo
+
+		_, err := t.Next(&existingCar)
+		if err == datastore.Done {
+			// Car does not exist so store it away
+			_, err := datastore.Put(c, datastore.NewIncompleteKey(c, "CarInfo", nil), &car)
+			if err != nil {
+				return
+			}
+		} else {
+			// Car already exists so do nothing...
+			fmt.Fprintf(w, "Pre-existing data %+v\n", existingCar)
 		}
+
 	}
 }
 
@@ -358,8 +351,6 @@ func getData(w http.ResponseWriter, r *http.Request) {
 	})
 
 	fmt.Fprintf(w, "%s\n", "DB create")
-
-	//MakeDB(r, car, countChan, count)
 
 	fmt.Fprintf(w, "%s\n", "DB Done")
 }
