@@ -27,18 +27,12 @@ a.carLink {
 <div class="container" ng-app=""  ng-controller="carsController" style="margin-top:100px; width:50%;">
 	<div class="row">
 		<div class="col-md-8" style="align:center;">
-				<select ng-model="make" ng-change="makeChanged()">
+				<select ng-model="make" ng-change="filterChanged()" ng-options="x.Value as x.Display for x in filters.Makes">
 					<option value="">Any Make</option>
-					<option ng-repeat="x in makes" value="{{ x.Value }}">
-					{{ x.Display }}
-					</option>
 				</select>
 			
-				<select ng-model="year" ng-change="yearChanged()">
+				<select ng-model="year" ng-change="filterChanged()" ng-options="x as x for x in filters.Years">
 					<option value="">Any Year</option>
-					<option ng-repeat="x in years" value="{{ x }}">
-					{{ x }}
-					</option>
 				</select>
 				
 				<button class="btn" style="background-color:#3eb9ae; color:white;" ng-click="resetData()">Reset Filters</button>
@@ -74,40 +68,25 @@ function carsController($scope,$http) {
 	$http.get("cars.json?mpg=bottom")
 	.success(function(response) {$scope.bottomCars = response;});
 	
-	$http.get("makes.json")
-	.success(function(response) {$scope.makes = response;});
+	$http.get("filters.json")
+		.success(function(response) {$scope.filters = response;});
 	
-	$http.get("years.json")
-	.success(function(response) {$scope.years = response;});
-	
-	$scope.makeChanged = function() {
+	$scope.filterChanged = function() {
 		$http.get("cars.json?mgp=top&make="+$scope.make+"&year="+$scope.year)
 		.success(function(response) {$scope.topCars = response;});
 		
 		$http.get("cars.json?mpg=bottom&make="+$scope.make+"&year="+$scope.year)
 		.success(function(response) {$scope.bottomCars = response;});
 		
-		$http.get("years.json?make="+$scope.make)
-		.success(function(response) {$scope.years = response;});
-	}
-	
-	$scope.yearChanged = function() {
-		$http.get("cars.json?mgp=top&make="+$scope.make+"&year="+$scope.year)
-		.success(function(response) {$scope.topCars = response;});
-		
-		$http.get("cars.json?mpg=bottom&make="+$scope.make+"&year="+$scope.year)
-		.success(function(response) {$scope.bottomCars = response;});
-		
-		$http.get("makes.json?year="+$scope.year)
-		.success(function(response) {$scope.makes = response;});
+		$http.get("filters.json?year="+$scope.year+"&make="+$scope.make)
+		.success(function(response) {$scope.filters = response;});
 	
 	}
 	
 	$scope.resetData = function() { 
 		$scope.make=""; 
 		$scope.year="";
-		$scope.yearChanged();
-		$scope.makeChanged(); 
+		$scope.filterChanged(); 
 	}
 }
 

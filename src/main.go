@@ -1,18 +1,15 @@
-package GroupMengine
+package FuellyView
 
 import (
 	"appengine"
+	"appengine/datastore"
+	"appengine/taskqueue"
 	"appengine/urlfetch"
 	"encoding/json"
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
-	//"io/ioutil"
 	"log"
 	"net/http"
-	//"net/url"
-	"appengine/datastore"
-	"appengine/taskqueue"
-	//"html/template"
 	"strconv"
 	"strings"
 )
@@ -22,9 +19,8 @@ func init() {
 	http.HandleFunc("/parseCar", parseCar)
 	//http.HandleFunc("/", queryDb)
 	//http.HandleFunc("/makes/{make:[A-Za-z]+}.json", serveMakeJson)
-	http.HandleFunc("/makes.json", serveMakeJson)
+	http.HandleFunc("/filters.json", serveFiltersJson)
 	http.HandleFunc("/cars.json", getCarData)
-	http.HandleFunc("/years.json", serveYearJson)
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "index.html")
@@ -37,87 +33,6 @@ type CarInfo struct {
 	Year  int
 	Mpg   float64
 	Url   string
-}
-
-func serveYearJson(w http.ResponseWriter, r *http.Request) {
-	c := appengine.NewContext(r)
-
-	carMake := r.URL.Query()["make"]
-
-	q := datastore.NewQuery("CarInfo")
-
-	if len(carMake) == 1 && len(carMake[0]) > 1 {
-		q = q.Filter("Make =", carMake[0])
-	}
-
-	q = q.Project("Year").
-		Order("-Year").
-		Distinct()
-
-	var years []string
-	for t := q.Run(c); ; {
-		var car2 CarInfo
-		_, err := t.Next(&car2)
-		if err == datastore.Done {
-			break
-		}
-		if err != nil {
-			http.Error(w, err.Error(), 500)
-			return
-		}
-
-		year := fmt.Sprintf("%d", car2.Year)
-		years = append(years, year)
-	}
-
-	dataJson, _ := json.Marshal(years)
-
-	fmt.Fprintf(w, "%s", string(dataJson))
-}
-
-func serveMakeJson(w http.ResponseWriter, r *http.Request) {
-	c := appengine.NewContext(r)
-
-	year := r.URL.Query()["year"]
-
-	q := datastore.NewQuery("CarInfo")
-
-	if len(year) == 1 && len(year[0]) == 4 {
-		carYear, _ := strconv.Atoi(year[0])
-		q = q.Filter("Year =", carYear)
-	}
-
-	q = q.Project("Make").
-		Distinct()
-
-	type MakeData struct {
-		Display string
-		Value   string
-	}
-
-	var makes []MakeData
-	for t := q.Run(c); ; {
-		var car2 CarInfo
-		_, err := t.Next(&car2)
-		if err == datastore.Done {
-			break
-		}
-		if err != nil {
-			http.Error(w, err.Error(), 500)
-			return
-		}
-
-		var newMake MakeData
-		newMake.Value = car2.Make
-		newMake.Display = strings.Replace(car2.Make, "_", " ", -1)
-		newMake.Display = strings.Title(newMake.Display)
-
-		makes = append(makes, newMake)
-	}
-
-	dataJson, _ := json.Marshal(makes)
-
-	fmt.Fprintf(w, "%s", string(dataJson))
 }
 
 func ModelScrape(client *http.Client, Make string, Model string, Url string) CarInfo {
