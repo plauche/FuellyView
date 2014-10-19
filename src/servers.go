@@ -21,6 +21,11 @@ type FilterData struct {
 	Years []string
 }
 
+type CarDisplay struct {
+	Url     string
+	Display string
+}
+
 func serveFiltersJson(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
 
@@ -111,62 +116,50 @@ func getYears(c appengine.Context, makeData string) []string {
 	return years
 }
 
-func serveYearJson(w http.ResponseWriter, r *http.Request) {
+func serveCarsJson(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
-
+	makeQuery := ""
+	yearQuery := 0
 	carMake := r.URL.Query()["make"]
-
-	q := datastore.NewQuery("CarInfo")
+	year := r.URL.Query()["year"]
 
 	if len(carMake) == 1 && len(carMake[0]) > 1 {
-		q = q.Filter("Make =", carMake[0])
+		makeQuery = carMake[0]
 	}
 
-	q = q.Project("Year").
-		Order("-Year").
-		Distinct()
-
-	var years []string
-	for t := q.Run(c); ; {
-		var car2 CarInfo
-		_, err := t.Next(&car2)
-		if err == datastore.Done {
-			break
-		}
-		if err != nil {
-			http.Error(w, err.Error(), 500)
-			return
-		}
-
-		year := fmt.Sprintf("%d", car2.Year)
-		years = append(years, year)
+	if len(year) == 1 && len(year[0]) == 4 {
+		yearQuery, _ = strconv.Atoi(year[0])
 	}
 
-	dataJson, _ := json.Marshal(years)
+	type CarData struct {
+		TopCars    []CarDisplay
+		BottomCars []CarDisplay
+	}
+
+	var dataDisplay CarData
+
+	dataDisplay.BottomCars = getCars(c, makeQuery, yearQuery, "Mpg")
+	dataDisplay.TopCars = getCars(c, makeQuery, yearQuery, "-Mpg")
+
+	dataJson, _ := json.Marshal(dataDisplay)
+
 	fmt.Fprintf(w, "%s", string(dataJson))
 }
 
-func serveMakeJson(w http.ResponseWriter, r *http.Request) {
-	c := appengine.NewContext(r)
+func getCars(c appengine.Context, searchMake string, searchYear int, orderBy string) []CarDisplay {
+	var dataDisplay []CarDisplay
+	q := datastore.NewQuery("CarInfo").
+		Order(orderBy).
+		Limit(10)
 
-	year := r.URL.Query()["year"]
-
-	q := datastore.NewQuery("CarInfo")
-
-	if len(year) == 1 && len(year[0]) == 4 {
-		carYear, _ := strconv.Atoi(year[0])
-		q = q.Filter("Year =", carYear)
+	if len(searchMake) > 0 {
+		q = q.Filter("Make =", searchMake)
 	}
 
-	q = q.Project("Make").
-		Distinct()
-
-	type MakeData struct {
-		Display string
-		Value   string
+	if searchYear > 0 {
+		q = q.Filter("Year = ", searchYear)
 	}
 
-	var makes []MakeData
 	for t := q.Run(c); ; {
 		var car2 CarInfo
 		_, err := t.Next(&car2)
@@ -174,19 +167,17 @@ func serveMakeJson(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 		if err != nil {
-			http.Error(w, err.Error(), 500)
-			return
+			break
 		}
-
-		var newMake MakeData
-		newMake.Value = car2.Make
-		newMake.Display = strings.Replace(car2.Make, "_", " ", -1)
-		newMake.Display = strings.Title(newMake.Display)
-
-		makes = append(makes, newMake)
+		var info CarDisplay
+		info.Url = fmt.Sprintf("%s/%d", car2.Url, car2.Year)
+		info.Display = fmt.Sprintf("%d %s %s (%-3.1f)",
+			car2.Year,
+			strings.Title(strings.Replace(car2.Make, "_", " ", -1)),
+			strings.Title(strings.Replace(car2.Model, "_", " ", -1)),
+			car2.Mpg)
+		dataDisplay = append(dataDisplay, info)
 	}
 
-	dataJson, _ := json.Marshal(makes)
-
-	fmt.Fprintf(w, "%s", string(dataJson))
+	return dataDisplay
 }

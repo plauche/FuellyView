@@ -5,7 +5,6 @@ import (
 	"appengine/datastore"
 	"appengine/taskqueue"
 	"appengine/urlfetch"
-	"encoding/json"
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
 	"log"
@@ -17,10 +16,8 @@ import (
 func init() {
 	http.HandleFunc("/refresh", getData)
 	http.HandleFunc("/parseCar", parseCar)
-	//http.HandleFunc("/", queryDb)
-	//http.HandleFunc("/makes/{make:[A-Za-z]+}.json", serveMakeJson)
 	http.HandleFunc("/filters.json", serveFiltersJson)
-	http.HandleFunc("/cars.json", getCarData)
+	http.HandleFunc("/cars.json", serveCarsJson)
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "index.html")
@@ -64,65 +61,6 @@ func ModelScrape(client *http.Client, Make string, Model string, Url string) Car
 	})
 
 	return car
-}
-
-func getCarData(w http.ResponseWriter, r *http.Request) {
-	c := appengine.NewContext(r)
-
-	carMake := r.URL.Query()["make"]
-	mpg := r.URL.Query()["mpg"]
-	year := r.URL.Query()["year"]
-
-	var orderBy string
-	if len(mpg) == 1 && mpg[0] == "bottom" {
-		orderBy = "Mpg"
-	} else {
-		orderBy = "-Mpg"
-	}
-
-	//fmt.Fprintf(w, "%+v", r.URL.Query()["make"])
-	type CarDisplay struct {
-		Url     string
-		Display string
-	}
-
-	var dataDisplay []CarDisplay
-	q := datastore.NewQuery("CarInfo").
-		Order(orderBy).
-		Limit(10)
-
-	if len(carMake) == 1 && len(carMake[0]) > 1 {
-		q = q.Filter("Make =", carMake[0])
-	}
-
-	if len(year) == 1 && len(year[0]) == 4 {
-		carYear, _ := strconv.Atoi(year[0])
-		q = q.Filter("Year =", carYear)
-	}
-
-	for t := q.Run(c); ; {
-		var car2 CarInfo
-		_, err := t.Next(&car2)
-		if err == datastore.Done {
-			break
-		}
-		if err != nil {
-			http.Error(w, err.Error(), 500)
-			return
-		}
-		var info CarDisplay
-		info.Url = fmt.Sprintf("%s/%d", car2.Url, car2.Year)
-		info.Display = fmt.Sprintf("%d %s %s (%-3.1f)",
-			car2.Year,
-			strings.Title(strings.Replace(car2.Make, "_", " ", -1)),
-			strings.Title(strings.Replace(car2.Model, "_", " ", -1)),
-			car2.Mpg)
-		dataDisplay = append(dataDisplay, info)
-	}
-
-	dataJson, _ := json.Marshal(dataDisplay)
-
-	fmt.Fprintf(w, "%s", string(dataJson))
 }
 
 func queryDb(w http.ResponseWriter, r *http.Request) {
